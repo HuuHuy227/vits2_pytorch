@@ -31,7 +31,8 @@
     "mel_fmax": null,
     "add_blank": false,
     "n_speakers": 0,
-    "cleaned_text": true
+    "cleaned_text": true,
+    "use_mel_spec_posterior": false
 },
 "model": {
     "use_mel_posterior_encoder": true,
@@ -55,5 +56,6 @@
     "n_layers_q": 3,
     "use_spectral_norm": false,
     "use_sdp": false
-}
+},
+    "pretrain_weight_path": "/kaggle/input/pretrained-vits-18k/G_18000.pth"
 }
