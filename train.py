@@ -237,6 +237,9 @@ def run(rank, n_gpus, hps):
                 optim_dur_disc,
             )
         global_step = (epoch_str - 1) * len(train_loader)
+        print(
+            f"******************Found exists checkpoint，at epoch {epoch_str}，global step {global_step}*********************"
+        )
     except:
         epoch_str = 1
         global_step = 0
