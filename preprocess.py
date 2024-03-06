@@ -24,7 +24,7 @@ if __name__ == "__main__":
             original_text = filepaths_and_text[i][args.text_index]
             cleaned_text, tone = clean_text(original_text)
             filepaths_and_text[i].append(tone)
-            filepaths_and_text[i][args.text_index] = " ".join(clean_text)
+            filepaths_and_text[i][args.text_index] = " ".join(cleaned_text)
 
         new_filelist = filelist + "." + args.out_extension
         with open(new_filelist, "w", encoding="utf-8") as f:
