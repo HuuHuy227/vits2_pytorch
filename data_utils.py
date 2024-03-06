@@ -23,6 +23,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
     def __init__(self, audiopaths_and_text, hparams):
         self.hparams = hparams
         self.audiopaths_and_text = load_filepaths_and_text(audiopaths_and_text)
+        self.audio_dir = hparams.audio_dir
         self.text_cleaners = hparams.text_cleaners
         self.max_wav_value = hparams.max_wav_value
         self.sampling_rate = hparams.sampling_rate
@@ -40,7 +41,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
 
         self.add_blank = hparams.add_blank
         self.min_text_len = getattr(hparams, "min_text_len", 1)
-        self.max_text_len = getattr(hparams, "max_text_len", 190)
+        self.max_text_len = getattr(hparams, "max_text_len", 200)
 
         random.seed(1234)
         random.shuffle(self.audiopaths_and_text)
@@ -56,19 +57,32 @@ class TextAudioLoader(torch.utils.data.Dataset):
 
         audiopaths_and_text_new = []
         lengths = []
-        for audiopath, text in self.audiopaths_and_text:
-            if self.min_text_len <= len(text) and len(text) <= self.max_text_len:
-                audiopaths_and_text_new.append([audiopath, text])
-                lengths.append(os.path.getsize(audiopath) // (2 * self.hop_length))
+        skipped = 0
+        print("Init dataset...")
+        for audiopath, phones, tone in self.audiopaths_and_text:
+            if self.min_text_len <= len(phones) and len(phones) <= self.max_text_len:
+                phones = phones.split(" ")
+                tone = [int(i) for i in tone.split(" ")]
+                audiopaths_and_text_new.append([audiopath, phones, tone])
+                lengths.append(os.path.getsize(os.path.join(self.audio_dir,audiopath)) // (2 * self.hop_length))
+            else:
+                skipped += 1
+
+        print(
+            "skipped: "
+            + str(skipped)
+            + ", total: "
+            + str(len(self.audiopaths_and_text))
+        )
         self.audiopaths_and_text = audiopaths_and_text_new
         self.lengths = lengths
 
     def get_audio_text_pair(self, audiopath_and_text):
         # separate filename and text
-        audiopath, text = audiopath_and_text[0], audiopath_and_text[1]
-        text = self.get_text(text)
-        spec, wav = self.get_audio(audiopath)
-        return (text, spec, wav)
+        audiopath, phone, tone = audiopath_and_text
+        phone, tone = self.get_text(phone, tone)
+        spec, wav = self.get_audio(os.path.join(self.audio_dir, audiopath))
+        return (phone, spec, wav, tone)
 
     def get_audio(self, filename):
         # TODO : if linear spec exists convert to mel from existing linear spec
@@ -121,15 +135,15 @@ class TextAudioLoader(torch.utils.data.Dataset):
             torch.save(spec, spec_filename)
         return spec, audio_norm
 
-    def get_text(self, text):
-        if self.cleaned_text:
-            text_norm = cleaned_text_to_sequence(text)
-        else:
-            text_norm = text_to_sequence(text, self.text_cleaners)
+    def get_text(self, phone, tone):
+        phone, tone = cleaned_text_to_sequence(phone, tone)
+        
         if self.add_blank:
-            text_norm = commons.intersperse(text_norm, 0)
-        text_norm = torch.LongTensor(text_norm)
-        return text_norm
+            phone = commons.intersperse(phone, 0)
+            tone = commons.intersperse(tone, 0)
+        phone = torch.LongTensor(phone)
+        tone = torch.LongTensor(tone)
+        return phone, tone
 
     def __getitem__(self, index):
         return self.get_audio_text_pair(self.audiopaths_and_text[index])
@@ -164,11 +178,17 @@ class TextAudioCollate:
         wav_lengths = torch.LongTensor(len(batch))
 
         text_padded = torch.LongTensor(len(batch), max_text_len)
+        tone_padded = torch.LongTensor(len(batch), max_text_len)
+
         spec_padded = torch.FloatTensor(len(batch), batch[0][1].size(0), max_spec_len)
         wav_padded = torch.FloatTensor(len(batch), 1, max_wav_len)
+
         text_padded.zero_()
+        tone_padded.zero_()
+
         spec_padded.zero_()
         wav_padded.zero_()
+
         for i in range(len(ids_sorted_decreasing)):
             row = batch[ids_sorted_decreasing[i]]
 
@@ -184,6 +204,9 @@ class TextAudioCollate:
             wav_padded[i, :, : wav.size(1)] = wav
             wav_lengths[i] = wav.size(1)
 
+            tone = row[3]
+            tone_padded[i, : tone.size(0)] = tone
+
         if self.return_ids:
             return (
                 text_padded,
@@ -192,6 +215,7 @@ class TextAudioCollate:
                 spec_lengths,
                 wav_padded,
                 wav_lengths,
+                tone_padded,
                 ids_sorted_decreasing,
             )
         return (
@@ -201,6 +225,7 @@ class TextAudioCollate:
             spec_lengths,
             wav_padded,
             wav_lengths,
+            tone_padded
         )
 
 

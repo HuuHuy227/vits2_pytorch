@@ -311,7 +311,7 @@ def train_and_evaluate(
         loader = tqdm.tqdm(train_loader, desc="Loading train data")
     else:
         loader = train_loader
-    for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths) in enumerate(
+    for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths, tone) in enumerate(
         loader
     ):
         if net_g.module.use_noise_scaled_mas:
@@ -330,6 +330,8 @@ def train_and_evaluate(
             rank, non_blocking=True
         )
 
+        tone = tone.cuda(rank, non_blocking=True)
+
         with autocast(enabled=hps.train.fp16_run):
             (
                 y_hat,
@@ -340,7 +342,7 @@ def train_and_evaluate(
                 z_mask,
                 (z, z_p, m_p, logs_p, m_q, logs_q),
                 (hidden_x, logw, logw_),
-            ) = net_g(x, x_lengths, spec, spec_lengths)
+            ) = net_g(x, x_lengths, spec, spec_lengths, tone)
 
             if (
                 hps.model.use_mel_posterior_encoder
@@ -537,13 +539,13 @@ def train_and_evaluate(
 def evaluate(hps, generator, eval_loader, writer_eval):
     generator.eval()
     with torch.no_grad():
-        for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths) in enumerate(
+        for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths, tone) in enumerate(
             eval_loader
         ):
             x, x_lengths = x.cuda(0), x_lengths.cuda(0)
             spec, spec_lengths = spec.cuda(0), spec_lengths.cuda(0)
             y, y_lengths = y.cuda(0), y_lengths.cuda(0)
-
+            tone = tone.cuda(0)
             # remove else
             x = x[:1]
             x_lengths = x_lengths[:1]
@@ -551,8 +553,9 @@ def evaluate(hps, generator, eval_loader, writer_eval):
             spec_lengths = spec_lengths[:1]
             y = y[:1]
             y_lengths = y_lengths[:1]
+            tone = tone[:1]
             break
-        y_hat, attn, mask, *_ = generator.module.infer(x, x_lengths, max_len=1000)
+        y_hat, attn, mask, *_ = generator.module.infer(x, x_lengths, tone, max_len=1000)
         y_hat_lengths = mask.sum([1, 2]).long() * hps.data.hop_length
 
         if hps.model.use_mel_posterior_encoder or hps.data.use_mel_posterior_encoder:
