@@ -3,7 +3,7 @@
     "log_interval": 200,
     "eval_interval": 1000,
     "seed": 1234,
-    "epochs": 6,
+    "epochs": 1000,
     "learning_rate": 2e-4,
     "betas": [0.8, 0.99],
     "eps": 1e-9,
@@ -18,9 +18,8 @@
 },
 "data": {
     "use_mel_posterior_encoder": true,
-    "training_files":"filelists/train.txt",
-    "validation_files":"filelists/val.txt",
-    "text_cleaners":["basic_cleaners"],
+    "training_files":"filelists/train.txt.cleaned",
+    "validation_files":"filelists/val.txt.cleaned",
     "max_wav_value": 32768.0,
     "sampling_rate": 22050,
     "filter_length": 1024,
@@ -30,8 +29,7 @@
     "mel_fmin": 0.0,
     "mel_fmax": null,
     "add_blank": false,
-    "n_speakers": 0,
-    "cleaned_text": true
+    "n_speakers": 0
 },
 "model": {
     "use_mel_posterior_encoder": true,

@@ -9,7 +9,7 @@ import torch.utils.data
 import commons
 from mel_processing import (mel_spectrogram_torch, spec_to_mel_torch,
                             spectrogram_torch)
-from text import cleaned_text_to_sequence, text_to_sequence
+from text import cleaned_text_to_sequence
 from utils import load_filepaths_and_text, load_wav_to_torch
 
 
@@ -37,7 +37,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
         )
         if self.use_mel_spec_posterior:
             self.n_mel_channels = getattr(hparams, "n_mel_channels", 80)
-        self.cleaned_text = getattr(hparams, "cleaned_text", False)
+        # self.cleaned_text = getattr(hparams, "cleaned_text", False)
 
         self.add_blank = hparams.add_blank
         self.min_text_len = getattr(hparams, "min_text_len", 1)
@@ -357,8 +357,8 @@ class TextAudioSpeakerLoader(torch.utils.data.Dataset):
     def get_text(self, text):
         if self.cleaned_text:
             text_norm = cleaned_text_to_sequence(text)
-        else:
-            text_norm = text_to_sequence(text, self.text_cleaners)
+        # else:
+        #     text_norm = text_to_sequence(text, self.text_cleaners)
         if self.add_blank:
             text_norm = commons.intersperse(text_norm, 0)
         text_norm = torch.LongTensor(text_norm)
