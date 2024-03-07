@@ -225,10 +225,16 @@ def run(rank, n_gpus, hps):
 
     try:
         _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g
+            utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g, 
+            skip_optimizer=(
+                hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
+            ),
         )
         _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d
+            utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d,
+            skip_optimizer=(
+                hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
+            ),
         )
         if net_dur_disc is not None:
             _, _, _, epoch_str = utils.load_checkpoint(

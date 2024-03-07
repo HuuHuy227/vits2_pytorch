@@ -500,6 +500,9 @@ EN={"a":"ây","ă":"á","â":"ớ","b":"bi","c":"si","d":"đi","đ":"đê","e":"
 import re
 
 def vi2IPA_split(texts,delimit):
+    """
+    TODO: Handle multi sentences
+    """
     content=[]
     with open(imp.find_module('viphoneme')[1]+"/Popular.txt",encoding="utf-8") as f:
         content=f.read().splitlines()
