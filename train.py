@@ -224,24 +224,36 @@ def run(rank, n_gpus, hps):
         net_dur_disc = DDP(net_dur_disc, device_ids=[rank], find_unused_parameters=True)
 
     try:
-        _, _, _, epoch_str = utils.load_checkpoint(
+        _, optim_g, g_resume_lr, epoch_str = utils.load_checkpoint(
             utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g, 
             skip_optimizer=(
                 hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
             ),
         )
-        _, _, _, epoch_str = utils.load_checkpoint(
+        _, optim_d, d_resume_lr, epoch_str = utils.load_checkpoint(
             utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d,
             skip_optimizer=(
                 hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
             ),
         )
+
+        if not optim_g.param_groups[0].get("initial_lr"):
+            optim_g.param_groups[0]["initial_lr"] = g_resume_lr
+        if not optim_d.param_groups[0].get("initial_lr"):
+            optim_d.param_groups[0]["initial_lr"] = d_resume_lr
+
         if net_dur_disc is not None:
-            _, _, _, epoch_str = utils.load_checkpoint(
+            _, _, dur_resume_lr, epoch_str = utils.load_checkpoint(
                 utils.latest_checkpoint_path(hps.model_dir, "DUR_*.pth"),
                 net_dur_disc,
                 optim_dur_disc,
+                skip_optimizer=(
+                    hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
+                )
             )
+            if not optim_dur_disc.param_groups[0].get("initial_lr"):
+                optim_dur_disc.param_groups[0]["initial_lr"] = dur_resume_lr
+
         global_step = (epoch_str - 1) * len(train_loader)
         print(
             f"******************Found exists checkpoint，at epoch {epoch_str}，global step {global_step}*********************"
