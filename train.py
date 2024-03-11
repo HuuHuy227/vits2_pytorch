@@ -8,7 +8,9 @@ from torch import nn, optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+import logging
 
+logging.getLogger("numba").setLevel(logging.WARNING)
 # from tensorboardX import SummaryWriter
 import torch.multiprocessing as mp
 import torch.distributed as dist
@@ -32,7 +34,17 @@ from mel_processing import mel_spectrogram_torch, spec_to_mel_torch
 from text.symbols import symbols
 
 
-torch.backends.cudnn.benchmark = True
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = (
+    True  # If encountered training problem,please try to disable TF32.
+)
+torch.set_float32_matmul_precision("medium")
+torch.backends.cuda.sdp_kernel("flash")
+torch.backends.cuda.enable_flash_sdp(True)
+torch.backends.cuda.enable_mem_efficient_sdp(
+    True
+)
+# torch.backends.cudnn.benchmark = True
 global_step = 0
 
 
@@ -225,13 +237,13 @@ def run(rank, n_gpus, hps):
 
     try:
         _, optim_g, g_resume_lr, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g, 
+            utils.latest_checkpoint_path(hps.train.pretrained_path, "G_*.pth"), net_g, optim_g, 
             skip_optimizer=(
                 hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
             ),
         )
         _, optim_d, d_resume_lr, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d,
+            utils.latest_checkpoint_path(hps.train.pretrained_path, "D_*.pth"), net_d, optim_d,
             skip_optimizer=(
                 hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
             ),
@@ -244,7 +256,7 @@ def run(rank, n_gpus, hps):
 
         if net_dur_disc is not None:
             _, _, dur_resume_lr, epoch_str = utils.load_checkpoint(
-                utils.latest_checkpoint_path(hps.model_dir, "DUR_*.pth"),
+                utils.latest_checkpoint_path(hps.train.pretrained_path, "DUR_*.pth"),
                 net_dur_disc,
                 optim_dur_disc,
                 skip_optimizer=(
@@ -254,7 +266,11 @@ def run(rank, n_gpus, hps):
             if not optim_dur_disc.param_groups[0].get("initial_lr"):
                 optim_dur_disc.param_groups[0]["initial_lr"] = dur_resume_lr
 
-        global_step = (epoch_str - 1) * len(train_loader)
+        epoch_str = max(epoch_str, 1)
+        # global_step = (epoch_str - 1) * len(train_loader)
+        global_step = int(
+            utils.get_steps(utils.latest_checkpoint_path(hps.train.pretrained_path, "G_*.pth"))
+        )
         print(
             f"******************Found exists checkpoint，at epoch {epoch_str}，global step {global_step}*********************"
         )

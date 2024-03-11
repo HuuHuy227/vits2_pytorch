@@ -8,20 +8,35 @@ import subprocess
 import numpy as np
 from scipy.io.wavfile import read
 import torch
+import re
 
 MATPLOTLIB_FLAG = False
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging
 
+def get_steps(model_path):
+    matches = re.findall(r"\d+", model_path)
+    return matches[-1] if matches else None
 
-def load_checkpoint(checkpoint_path, model, optimizer=None):
+def load_checkpoint(checkpoint_path, model, optimizer=None, skip_optimizer=False):
     assert os.path.isfile(checkpoint_path)
     checkpoint_dict = torch.load(checkpoint_path, map_location="cpu")
     iteration = checkpoint_dict["iteration"]
     learning_rate = checkpoint_dict["learning_rate"]
-    if optimizer is not None:
+    if (
+        optimizer is not None
+        and not skip_optimizer
+        and checkpoint_dict["optimizer"] is not None
+    ):
         optimizer.load_state_dict(checkpoint_dict["optimizer"])
+    elif optimizer is None and not skip_optimizer:
+        # else:      Disable this line if Infer and resume checkpoint,then enable the line upper
+        new_opt_dict = optimizer.state_dict()
+        new_opt_dict_params = new_opt_dict["param_groups"][0]["params"]
+        new_opt_dict["param_groups"] = checkpoint_dict["optimizer"]["param_groups"]
+        new_opt_dict["param_groups"][0]["params"] = new_opt_dict_params
+        optimizer.load_state_dict(new_opt_dict)
     saved_state_dict = checkpoint_dict["model"]
     if hasattr(model, "module"):
         state_dict = model.module.state_dict()
@@ -92,14 +107,19 @@ def scan_checkpoint(dir_path, regex):
     return f_list
 
 
-def latest_checkpoint_path(dir_path, regex="G_*.pth"):
-    f_list = scan_checkpoint(dir_path, regex)
-    if not f_list:
-        return None
-    x = f_list[-1]
-    print(x)
-    return x
+# def latest_checkpoint_path(dir_path, regex="G_*.pth"):
+#     f_list = scan_checkpoint(dir_path, regex)
+#     if not f_list:
+#         return None
+#     x = f_list[-1]
+#     print(x)
+#     return x
 
+def latest_checkpoint_path(dir_path, regex="G_*.pth"):
+    f_list = glob.glob(os.path.join(dir_path, regex))
+    f_list.sort(key=lambda f: int("".join(filter(str.isdigit, f))))
+    x = f_list[-1]
+    return x
 
 def remove_old_checkpoints(cp_dir, prefixes=['G_*.pth', 'D_*.pth', 'DUR_*.pth']):
     for prefix in prefixes:
