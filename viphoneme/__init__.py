@@ -511,8 +511,8 @@ def vi2IPA_split(texts,delimit):
     for text in tess:
         #print("------------------------------------------------------")
         TN = TTSnorm(text).strip()  #Uncomment for text normalize for linux
-        if TN[-1] == '.':
-            TN = TN[:-1]
+        # if TN[-1] == '.':
+        #     TN = TN[:-1]
         #TN=text
         #print("------------------------------------------------------")
         #print("Text normalize:              ",TN)

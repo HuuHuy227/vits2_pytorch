@@ -1,26 +1,25 @@
 ## LJSpeech
 import torch
 
-import commons
 import utils
 from models import SynthesizerTrn
 from text.symbols import symbols
-from text import text_to_sequence
 
 from scipy.io.wavfile import write
+from text.vietnamese import g2p
+from text import cleaned_text_to_sequence
 
+def get_text(text):
+    phone, tone = g2p(text)
+    phone, tone = cleaned_text_to_sequence(phone, tone)
 
-def get_text(text, hps):
-    text_norm = text_to_sequence(text, hps.data.text_cleaners)
-    if hps.data.add_blank:
-        text_norm = commons.intersperse(text_norm, 0)
-    text_norm = torch.LongTensor(text_norm)
-    return text_norm
+    phone = torch.LongTensor(phone)
+    tone = torch.LongTensor(tone)
+    return phone,  tone
 
-
-CONFIG_PATH = "./configs/vits2_ljs_nosdp.json"
-MODEL_PATH = "./logs/G_114000.pth"
-TEXT = "VITS-2 is Awesome!"
+CONFIG_PATH = "./configs/config.json"
+MODEL_PATH = "D:\demo\checkpoints\G_34000.pth"
+TEXT = "Cuộc sống vốn dĩ bao la làm sao, tìm được nhau khó thế nào"
 OUTPUT_WAV_PATH = "sample_vits2.wav"
 
 hps = utils.get_hparams_from_file(CONFIG_PATH)
@@ -45,19 +44,14 @@ net_g = SynthesizerTrn(
 ).cuda()
 _ = net_g.eval()
 
-_ = utils.load_checkpoint(MODEL_PATH, net_g, None)
+_ = utils.load_checkpoint(MODEL_PATH, net_g, None, skip_optimizer=True)
 
-stn_tst = get_text(TEXT, hps)
+stn_tst, tone = get_text(TEXT)
 with torch.no_grad():
     x_tst = stn_tst.cuda().unsqueeze(0)
+    tone = tone.cuda().unsqueeze(0)
     x_tst_lengths = torch.LongTensor([stn_tst.size(0)]).cuda()
-    audio = (
-        net_g.infer(
-            x_tst, x_tst_lengths, noise_scale=0.667, noise_scale_w=0.8, length_scale=1
-        )[0][0, 0]
-        .data.cpu()
-        .float()
-        .numpy()
-    )
+    audio = net_g.infer(x_tst, x_tst_lengths, tone, noise_scale=.667, noise_scale_w=0.8, length_scale=1)[0][0,0].data.cpu().float().numpy()
+#ipd.display(ipd.Audio(audio, rate=hps.data.sampling_rate, normalize=False))
 
 write(data=audio, rate=hps.data.sampling_rate, filename=OUTPUT_WAV_PATH)
