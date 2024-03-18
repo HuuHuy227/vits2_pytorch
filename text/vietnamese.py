@@ -3,6 +3,7 @@ from viphoneme import vi2IPA, vi2IPA_split
 
 from text import symbols
 from text.symbols import punctuation
+from text import english
 
 def post_replace_ph(ph):
     rep_map = {
@@ -101,8 +102,11 @@ def refine_ph(phn):
     """
     tone = 0
     if re.search(r"\d", phn[:-1]):
-        tone = int(phn[-2])
-        phn = phn[:-2]
+        try:
+            tone = int(phn[-2])
+            phn = phn[:-2]
+        except:
+            tone = 0
     elif not re.search(r"\d", phn[:-1]) and len(phn) > 3:
         tone = 1
     else:
@@ -125,9 +129,13 @@ def g2p(text):
 
     text = text.replace('\s+',' ').lower()
     phonemes = vi2IPA_split(text,delimit="/").split()
-    #phonemes1 = vi2IPA(text)
+    # print(phonemes)
     for pho in phonemes:
-        if "_" in pho: # handle TH tu ghep vd: vi_tri nghien_cuu_vien, ...
+        if pho[0]=="[" and pho[-1]=="]": # TH english
+            ph, to = english.en_g2p(pho[1:-1])
+            tones.extend(to)
+            phones.extend(ph)
+        elif "_" in pho: # handle TH tu ghep vd: vi_tri nghien_cuu_vien, ...
             w_split = pho.split("_")
             for w in w_split:
                 tmp_ph, tmp_tone = cal_ph(w)

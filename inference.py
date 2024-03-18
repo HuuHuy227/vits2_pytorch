@@ -6,20 +6,21 @@ from models import SynthesizerTrn
 from text.symbols import symbols
 
 from scipy.io.wavfile import write
+from text.cleaners import clean_text
 from text.vietnamese import g2p
 from text import cleaned_text_to_sequence
 
 def get_text(text):
-    phone, tone = g2p(text)
+    phone, tone = clean_text(text)
     phone, tone = cleaned_text_to_sequence(phone, tone)
-
+    # print(len(phone), len(tone))
     phone = torch.LongTensor(phone)
     tone = torch.LongTensor(tone)
     return phone,  tone
 
 CONFIG_PATH = "./configs/config.json"
-MODEL_PATH = "D:\demo\checkpoints\G_34000.pth"
-TEXT = "Cuộc sống vốn dĩ bao la làm sao, tìm được nhau khó thế nào"
+MODEL_PATH = "D:\demo\checkpoints\G_83000.pth"
+TEXT = "Excuseme can you show me the way to the station"
 OUTPUT_WAV_PATH = "sample_vits2.wav"
 
 hps = utils.get_hparams_from_file(CONFIG_PATH)

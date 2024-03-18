@@ -1,17 +1,8 @@
-""" from https://github.com/keithito/tacotron """
-
-"""
-Defines the set of symbols used in text input to the model.
-"""
-# _pad = "_"
-# _punctuation = ';:,.!?¡¿—…"«»“” '
-# _letters = "nhtcgiuamđàovưrlábykpsôạếdóảêệấờộớốâìềểợơủqxịậầữíựúăắeứọụãởồặùòừổũỏửẽỉéẹẩýẫằẻễỗĩỡỹèẳõỳỷẵỵ"
-# _letters_ipa = "atːəɜ26ni̪ŋhɪy4omɲɗɡɔkɛuzʊvel5bɕʂʃwxfpsjcɣ1()æɹdɒɑʌʒ7ðɐʐ"
-
 pad = "_"
 punctuation = ["!", "?", "…", ",", ".", "'", "-"]
 pu_symbols = punctuation + ["SP", "UNK"]
-normal_symbols = [
+# Vietnamese
+vi_symbols = [
            'ɯəj', 
            'ɤ̆j', 
            'ʷiə', 
@@ -149,10 +140,54 @@ normal_symbols = [
            'e', 
            't', 
            "'"]
-num_tones = 7
+
+# English
+en_symbols = [
+    "aa",
+    "ae",
+    "ah",
+    "ao",
+    "aw",
+    "ay",
+    "b",
+    "ch",
+    "d",
+    "dh",
+    "eh",
+    "er",
+    "ey",
+    "f",
+    "g",
+    "hh",
+    "ih",
+    "iy",
+    "jh",
+    "k",
+    "l",
+    "m",
+    "n",
+    "ng",
+    "ow",
+    "oy",
+    "p",
+    "r",
+    "s",
+    "sh",
+    "t",
+    "th",
+    "uh",
+    "uw",
+    "V",
+    "w",
+    "y",
+    "z",
+    "zh",
+]
+
+num_tones = 10
 
 # Export all symbols:
-symbols = [pad] + sorted(set(normal_symbols + pu_symbols))
+symbols = [pad] + sorted(set(vi_symbols + en_symbols + pu_symbols))
 
 # Special symbol ids
 SPACE_ID = symbols.index(" ")

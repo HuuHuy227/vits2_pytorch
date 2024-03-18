@@ -10,3 +10,4 @@ vector_quantize_pytorch
 vinorm
 underthesea
 eng_to_ipa
+g2p_en

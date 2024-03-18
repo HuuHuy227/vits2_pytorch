@@ -17,7 +17,8 @@ def cleaned_text_to_sequence(cleaned_text, tones):
             symbol_id = _symbol_to_id[symbol]
             sequence += [symbol_id]
         else:
-            continue
+            # continue
+            sequence += [11] #Unk symbol
     return sequence, tones
 
 def sequence_to_text(sequence):

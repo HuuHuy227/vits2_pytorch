@@ -510,13 +510,13 @@ def vi2IPA_split(texts,delimit):
     Results =""
     for text in tess:
         #print("------------------------------------------------------")
-        TN = TTSnorm(text).strip()  #Uncomment for text normalize for linux
+        # TN = TTSnorm(text).strip()  #Uncomment for text normalize for linux
         # if TN[-1] == '.':
         #     TN = TN[:-1]
         #TN=text
         #print("------------------------------------------------------")
         #print("Text normalize:              ",TN)
-        TK= word_tokenize(TN)
+        TK= word_tokenize(text)
         #print(TK) #Tk = word_tokenize(TN) for text normilize
         #print("Vietnamese Tokenize:         ",TK)
 
@@ -541,36 +541,37 @@ def vi2IPA_split(texts,delimit):
             if ipa =="":
                 IPA+=delimit+tk+delimit+" "
             elif ipa[0]=="[" and ipa[-1]=="]":
-                eng = eng_to_ipa.convert(tk)
-                if eng[-1] == "*":
-                    if tk.lower().upper() == tk:
-                        ##print("ENGLISH",tk)
-                        #Đọc tiếng anh từng chữ
-                        letter2sound=""
-                        for char in tk:
-                            CHAR = str(char).lower()
-                            if CHAR in list(EN.keys()):
-                                letter2sound+=EN[CHAR]+" "
-                            else:
-                                letter2sound+=char+" "
-                        IPA+=T2IPA_split(letter2sound,delimit)+" "
-                    else:
-                        #Giữ nguyên
-                        #Future: test experiment" Nếu từ unknow có thể dùng eng_norm để chuyển qua thay thế chứ không cần giữ nguyên như này
-                        IPA+=Parsing("default",tk.lower(),delimit)+" "
-                else:
-                    #This use for version english not splited by syllable
-                    IPA+=Parsing("default",eng,delimit)+" "
-                    #This version will split english to each syllable
-                    #IPA+=normEng(tk,delimit)+ delimit+" "
+                # English version 
+                IPA+="["+tk+"]"+" "
+                # eng = eng_to_ipa.convert(tk)
+                # if eng[-1] == "*":
+                #     if tk.lower().upper() == tk:
+                #         ##print("ENGLISH",tk)
+                #         #Đọc tiếng anh từng chữ
+                #         letter2sound=""
+                #         for char in tk:
+                #             CHAR = str(char).lower()
+                #             if CHAR in list(EN.keys()):
+                #                 letter2sound+=EN[CHAR]+" "
+                #             else:
+                #                 letter2sound+=char+" "
+                #         IPA+=T2IPA_split(letter2sound,delimit)+" "
+                #     else:
+                #         #Giữ nguyên
+                #         #Future: test experiment" Nếu từ unknow có thể dùng eng_norm để chuyển qua thay thế chứ không cần giữ nguyên như này
+                #         IPA+=Parsing("default",tk.lower(),delimit)+" "
+                # else:
+                #     #This use for version english not splited by syllable
+                #     # IPA+=Parsing("default",eng,delimit)+" "
+                #     #This version will split english to each syllable
+                #     IPA+=normEng(tk,delimit)+ delimit+" "
 
-
-                #Check tu dien tieng anh Etrain bưc
-                #Neu co Mapping
-                #Neu khong, check co nguyen am
-                #Neu co de nguyen
-                #Neu khong danh van
-                #print("                                    ..................Out of domain word: " ,ipa)
+                # #Check tu dien tieng anh Etrain bưc
+                # #Neu co Mapping
+                # #Neu khong, check co nguyen am
+                # #Neu co de nguyen
+                # #Neu khong danh van
+                # #print("                                    ..................Out of domain word: " ,ipa)
             else:
                 IPA+=ipa+" "
         IPA=re.sub(delimit+'+', delimit, IPA)
