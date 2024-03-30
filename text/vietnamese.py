@@ -30,6 +30,7 @@ def post_replace_ph(ph):
     return ph
 
 rep_map = {
+    ": ": ",",
     "：": ",",
     "；": ",",
     "，": ",",
@@ -94,32 +95,49 @@ def text_normalize(text):
     text = re.sub(r"([,;.\?\!])([\w])", r"\1 \2", text)
     return text
 
-def refine_ph(phn):
-    """
-        Refine phone
-        Input: phone
-        Output: Calculate phone and tone
-    """
-    tone = 0
-    if re.search(r"\d", phn[:-1]):
-        try:
-            tone = int(phn[-2])
-            phn = phn[:-2]
-        except:
-            tone = 0
-    elif not re.search(r"\d", phn[:-1]) and len(phn) > 3:
-        tone = 1
-    else:
-        tone = 0
-    return phn, tone
+# def refine_ph(phn):
+#     """
+#         Refine phone
+#         Input: phone
+#         Output: Calculate phone and tone
+#     """
+#     tone = 0
+#     if re.search(r"\d", phn[:-1]):
+#         try:
+#             tone = int(phn[-2])
+#             phn = phn[:-2]
+#         except:
+#             tone = 0
+#     elif not re.search(r"\d", phn[:-1]) and len(phn) > 3:
+#         tone = 1
+#     else:
+#         tone = 0
+#     return phn, tone
+
+# def cal_ph(word):
+#     ph, tn = refine_ph(word)
+#     tmp_ph = ph.split("/")[1:-1]
+#     # Create 1 tone for all phoneome if phono in punction is 0
+#     tmp_tone = [0 if p in punctuation else 1 for p in tmp_ph] # In case English text, all will have tone [1,1,...,1]
+#     if len(tmp_tone) > 1:
+#         tmp_tone[1] = tn # Tone for vietnamese usually in 2nd phoneme
+
+#     return tmp_ph, tmp_tone
 
 def cal_ph(word):
-    ph, tn = refine_ph(word)
-    tmp_ph = ph.split("/")[1:-1]
-    # Create 1 tone for all phoneome if phono in punction is 0
-    tmp_tone = [0 if p in punctuation else 1 for p in tmp_ph] # In case English text, all will have tone [1,1,...,1]
-    if len(tmp_tone) > 1:
-        tmp_tone[1] = tn # Tone for vietnamese usually in 2nd phoneme
+    phones = word.split("/")[1:-1]
+    tmp_tone = []
+    tmp_ph = []
+    for p in phones:
+        if p in punctuation:
+            tmp_tone.append(0)
+            tmp_ph.append(p)
+        elif re.search(r"\d", p):
+            tmp_tone.append(int(p[-1]))
+            tmp_ph.append(p[:-1])
+        else:
+            tmp_tone.append(1)
+            tmp_ph.append(p)
 
     return tmp_ph, tmp_tone
 

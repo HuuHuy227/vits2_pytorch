@@ -19,19 +19,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # for filelist in args.filelists:
-    #     print("START:", filelist)
-    #     filepaths_and_text = load_filepaths_and_text(filelist)
-    #     for i in tqdm(range(len(filepaths_and_text))):
-    #         original_text = filepaths_and_text[i][args.text_index]
-    #         cleaned_text, tone = clean_text(original_text)
-    #         filepaths_and_text[i].append(tone)
-    #         filepaths_and_text[i][args.text_index] = " ".join(cleaned_text)
-
-    #     new_filelist = filelist + "." + args.out_extension
-    #     with open(new_filelist, "w", encoding="utf-8") as f:
-    #         f.writelines(["|".join(x) + "\n" for x in filepaths_and_text])
-
     for filelist in args.filelists:
         print("START:", filelist)
 

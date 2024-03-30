@@ -327,7 +327,8 @@ def convert(word, dialect, glottal, pham, cao, palatals, delimit):
         if None in (ons, nuc, cod, ton):
             seq = u'['+word+u']'
         else:
-            seq = delimit+delimit.join(filter(None, (ons, nuc, cod, ton)))+delimit
+            # seq = delimit+delimit.join(filter(None, (ons, nuc, cod, ton)))+delimit
+            seq = delimit+delimit.join(filter(None, (ons, nuc+ton, cod)))+delimit
     except (TypeError):
         pass
 
@@ -510,13 +511,13 @@ def vi2IPA_split(texts,delimit):
     Results =""
     for text in tess:
         #print("------------------------------------------------------")
-        # TN = TTSnorm(text).strip()  #Uncomment for text normalize for linux
+        TN = TTSnorm(text,rule =True, punc = True).strip()  #Uncomment for text normalize for linux
         # if TN[-1] == '.':
         #     TN = TN[:-1]
         #TN=text
         #print("------------------------------------------------------")
         #print("Text normalize:              ",TN)
-        TK= word_tokenize(text)
+        TK = word_tokenize(TN)
         #print(TK) #Tk = word_tokenize(TN) for text normilize
         #print("Vietnamese Tokenize:         ",TK)
 
