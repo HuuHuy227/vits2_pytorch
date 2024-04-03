@@ -18,9 +18,9 @@ def get_text(text):
     tone = torch.LongTensor(tone)
     return phone,  tone
 
-CONFIG_PATH = "./configs/config.json"
-MODEL_PATH = "D:\demo\checkpoints\G_83000.pth"
-TEXT = "Excuseme can you show me the way to the station"
+CONFIG_PATH = "./configs/config_test.json"
+MODEL_PATH = "D:\demo\checkpoints\G_3000.pth"
+TEXT = "tui đi ngủ"
 OUTPUT_WAV_PATH = "sample_vits2.wav"
 
 hps = utils.get_hparams_from_file(CONFIG_PATH)
