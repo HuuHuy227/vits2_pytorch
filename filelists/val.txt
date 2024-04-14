@@ -1,5 +1,8 @@
-02101.wav|Do đó, tổng số tiền mà ông Klinsmann nhận được có thể lên đến mười tỉ won hơn một trăm tám mươi tỉ đồng
-02102.wav|Đây là con số khổng lồ mà ca ép a phải tính toán kỹ lưỡng
-02103.wav|Theo một số thông tin, luật sư của hai bên có thể ngồi lại để đàm phán nhằm giảm bớt con số này
-02104.wav|Phát biểu hôm mười sáu tháng hai sau khi sa thải huấn luyện viên du gen Klinsmann, Chủ tịch ca ép a Chung Mong-Gyu cho biết
-02105.wav|Chúng tôi sẽ bàn bạc với luật sư của ông ấy về vấn đề bồi thường hợp đồng, nếu có khúc mắc, chúng tôi sẽ tìm cách giải quyết
+04861.wav|Trong thời gian qua, ông Nguyễn Văn Thành, giám đốc Sở Khoa học và Công nghệ tỉnh
+04862.wav|Tháng mười hai năm hai nghìn không trăm hai mươi ba, chủ tịch ủy ban nhân dân tỉnh ban hành liên tiếp hai kết luận giải quyết
+04863.wav|Mới đây, ông Thành có văn bản gửi ông Đặng Văn Minh, chủ tịch ủy ban nhân dân tỉnh Quảng Ngãi
+04864.wav|cho rằng kết luận nội dung tố cáo ngày tám tháng mười hai năm hai nghìn không trăm hai mươi ba của ông Minh
+04865.wav|Sau khi rà soát hồ sơ vụ việc, Ngày hai tháng hai, chủ tịch ủy ban nhân dân tỉnh Quảng Ngãi có văn bản trả lời
+04866.wav|cho rằng kiến nghị của giám đốc Sở Khoa học và Công nghệ không có cơ sở
+04867.wav|và khẳng định ông Thành nhận thức pháp luật sai, áp dụng sai quy định của pháp luật
+04868.wav|Đồng thời, căn cứ nhiều quy định của pháp luật, chủ tịch ủy ban nhân dân

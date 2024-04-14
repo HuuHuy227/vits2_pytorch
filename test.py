@@ -4,11 +4,11 @@ from text.vietnamese import g2p
 from viphoneme import vi2IPA_split
 from text.cleaners import clean_text
 # print(vi2IPA_split("Sáng hôm sau, thi thể Sherri được tìm thấy trong chiếc minivan của gia đình ở một bãi đậu xe bên ngoài thành phố Pensacola, Florida", delimit="/"))
-p, t = clean_text("Palme đi o")
+p, t = clean_text("em xi La ren")
 print(p)
 print(t)
-print(len(p), len(t))
-# print(cleaned_text_to_sequence(p, t))
+# print(len(p), len(t))
+print(cleaned_text_to_sequence(p, t))
 
 
 # import pandas as pd

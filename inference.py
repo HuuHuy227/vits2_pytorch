@@ -20,7 +20,7 @@ def get_text(text):
 
 CONFIG_PATH = "./configs/config_test.json"
 MODEL_PATH = "D:\demo\checkpoints\G_3000.pth"
-TEXT = "tui đi ngủ"
+TEXT = "tôi không online"
 OUTPUT_WAV_PATH = "sample_vits2.wav"
 
 hps = utils.get_hparams_from_file(CONFIG_PATH)
