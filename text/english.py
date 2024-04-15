@@ -199,7 +199,7 @@ def refine_ph(phn):
         tone = int(phn[-1]) + 7 # Vietnamese has 6 tones and tone for punc. So total is + 7
         phn = phn[:-1]
     else:
-        tone = 9
+        tone = 1
     return phn.lower(), tone
 
 

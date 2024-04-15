@@ -184,7 +184,7 @@ en_symbols = [
     "zh",
 ]
 
-num_tones = 10
+num_tones = 9
 
 # Export all symbols:
 symbols = [pad] + sorted(set(vi_symbols + en_symbols + pu_symbols))
