@@ -196,7 +196,10 @@ eng_dict = get_dict()
 def refine_ph(phn):
     tone = 0
     if re.search(r"\d$", phn):
-        tone = int(phn[-1]) + 7 # Vietnamese has 6 tones and tone for punc. So total is + 7
+        if int(phn[-1]) == 2:
+            tone = 1
+        else:
+            tone = int(phn[-1]) + 7 # Vietnamese has 6 tones and tone for punc. So total is + 7
         phn = phn[:-1]
     else:
         tone = 1
