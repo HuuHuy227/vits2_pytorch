@@ -258,6 +258,8 @@ def run(rank, n_gpus, hps):
         )
         print("******************Found exists checkpoints and only training DP module******************")
     except:
+        epoch_str = 1
+        global_step = 0
         print("******************Can't found exist Vits2 path. Training Vits2 from scratch******************")
 
 
