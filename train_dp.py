@@ -46,7 +46,7 @@ torch.backends.cuda.enable_mem_efficient_sdp(
 )
 # torch.backends.cudnn.benchmark = True
 global_step = 0
-
+global_dur_step = 0
 
 def main():
     """Assume Single Node Multi GPUs Training Only"""
@@ -69,6 +69,7 @@ def main():
 
 def run(rank, n_gpus, hps):
     global global_step
+    global global_dur_step
     if rank == 0:
         logger = utils.get_logger(hps.model_dir)
         logger.info(hps)
@@ -222,25 +223,9 @@ def run(rank, n_gpus, hps):
         betas=hps.train.betas,
         eps=hps.train.eps,
     )
-    if net_dur_disc is not None:
-        optim_dur_disc = torch.optim.AdamW(
-            net_dur_disc.parameters(),
-            hps.train.learning_rate,
-            betas=hps.train.betas,
-            eps=hps.train.eps,
-        )
-    else:
-        optim_dur_disc = None
 
-    net_g = DDP(net_g, device_ids=[rank], find_unused_parameters=True)
-    net_d = DDP(net_d, device_ids=[rank], find_unused_parameters=True)
-    if net_dur_disc is not None:
-        net_dur_disc = DDP(net_dur_disc, device_ids=[rank], find_unused_parameters=True)
 
     try:
-        # load VITS2 model
-        # _, _, _, _ = utils.load_checkpoint(utils.latest_checkpoint_path(hps.train.pretrained_path, "G_*.pth"), net_g)
-
         _, optim_g, g_resume_lr, epoch_str = utils.load_checkpoint(
             utils.latest_checkpoint_path(hps.train.pretrained_path, "G_*.pth"), net_g, optim_g, 
             skip_optimizer=(
@@ -267,14 +252,33 @@ def run(rank, n_gpus, hps):
         # Unfreeze parameters in the Duration Predictor module
         for param in net_g.dp.parameters():
             param.requires_grad = True
+        
+        global_step = int(
+            utils.get_steps(utils.latest_checkpoint_path(hps.train.pretrained_path, "G_*.pth"))
+        )
         print("******************Found exists checkpoints and only training DP module******************")
     except:
         print("******************Can't found exist Vits2 path. Training Vits2 from scratch******************")
 
 
+    if net_dur_disc is not None:
+        optim_dur_disc = torch.optim.AdamW(
+            net_dur_disc.parameters(),
+            hps.train.learning_rate,
+            betas=hps.train.betas,
+            eps=hps.train.eps,
+        )
+    else:
+        optim_dur_disc = None
+
+    net_g = DDP(net_g, device_ids=[rank], find_unused_parameters=True)
+    net_d = DDP(net_d, device_ids=[rank], find_unused_parameters=True)
+    if net_dur_disc is not None:
+        net_dur_disc = DDP(net_dur_disc, device_ids=[rank], find_unused_parameters=True)
+
     try:
         if net_dur_disc is not None:
-            _, _, dur_resume_lr, epoch_str = utils.load_checkpoint(
+            _, _, dur_resume_lr, epoch_dur_str = utils.load_checkpoint(
                 utils.latest_checkpoint_path(hps.train.pretrained_path, "DUR_*.pth"),
                 net_dur_disc,
                 optim_dur_disc,
@@ -284,16 +288,16 @@ def run(rank, n_gpus, hps):
             )
             if not optim_dur_disc.param_groups[0].get("initial_lr"):
                 optim_dur_disc.param_groups[0]["initial_lr"] = dur_resume_lr
-        global_step = int(
+        global_dur_step = int(
             utils.get_steps(utils.latest_checkpoint_path(hps.train.pretrained_path, "DUR_*.pth"))
         )
         print(
-            f"******************Found exists DP checkpoint，at epoch {epoch_str}，global step {global_step}*********************"
+            f"******************Found exists Discriminator checkpoint，at epoch {epoch_dur_str}，global step {global_dur_step}*********************"
         )
     except:
         print("******************Training DP from scratch*********************")
-        epoch_str = 1
-        global_step = 0
+        epoch_dur_str = 1
+        global_dur_step = 0
 
     # try:
     #     _, optim_g, g_resume_lr, epoch_str = utils.load_checkpoint(
@@ -347,7 +351,7 @@ def run(rank, n_gpus, hps):
     )
     if net_dur_disc is not None:
         scheduler_dur_disc = torch.optim.lr_scheduler.ExponentialLR(
-            optim_dur_disc, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
+            optim_dur_disc, gamma=hps.train.lr_decay, last_epoch=epoch_dur_str - 2
         )
     else:
         scheduler_dur_disc = None
@@ -399,6 +403,7 @@ def train_and_evaluate(
 
     train_loader.batch_sampler.set_epoch(epoch)
     global global_step
+    global global_dur_step
 
     net_g.train()
     net_d.train()
@@ -415,7 +420,7 @@ def train_and_evaluate(
         if net_g.module.use_noise_scaled_mas:
             current_mas_noise_scale = (
                 net_g.module.mas_noise_scale_initial
-                - net_g.module.noise_scale_delta * global_step
+                - net_g.module.noise_scale_delta * global_dur_step #global_step
             )
             net_g.module.current_mas_noise_scale = max(current_mas_noise_scale, 0.0)
         x, x_lengths = x.cuda(rank, non_blocking=True), x_lengths.cuda(
@@ -625,10 +630,11 @@ def train_and_evaluate(
                         optim_dur_disc,
                         hps.train.learning_rate,
                         epoch,
-                        os.path.join(hps.model_dir, "DUR_{}.pth".format(global_step)),
+                        os.path.join(hps.model_dir, "DUR_{}.pth".format(global_dur_step)),
                     )
                 utils.remove_old_checkpoints(hps.model_dir, prefixes=["G_*.pth", "D_*.pth", "DUR_*.pth"])
         global_step += 1
+        global_dur_step += 1
 
     if rank == 0:
         logger.info("====> Epoch: {}".format(epoch))
