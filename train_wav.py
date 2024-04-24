@@ -212,6 +212,8 @@ def run(rank, n_gpus, hps):
     for param in net_g.dp.parameters():
         param.requires_grad = False
 
+    print("******************Only training wav not duration predictor*********************")
+
     net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm).cuda(rank)
     optim_g = torch.optim.AdamW(
         net_g.parameters(),
