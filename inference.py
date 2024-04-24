@@ -19,9 +19,21 @@ def get_text(text):
     return phone,  tone
 
 CONFIG_PATH = "./configs/config_test.json"
-MODEL_PATH = "D:\demo\checkpoints\G_10000.pth"
-TEXT = "Trời mưa, tôi không đi học"
-OUTPUT_WAV_PATH = "sample_vits2.wav"
+MODEL_PATH = "D:\demo\checkpoints\G_70000.pth"
+TEXT = """
+Nửa đời binh biến không màng
+Đến khi trở lại thì nàng có con
+Lúc đi má đỏ môi son
+Khi về nàng đã có con có chồng
+Vì giang sơn mất bóng hồng
+Dẹp xong chiến loạn thì không còn gì
+Cuộc đời thật lắm thị phi
+Lập được công lớn xong thì chết oan
+Thương cho Hàn Tín mà than
+Bao nhiêu công sức thân tàn bụi tro
+"""
+
+OUTPUT_WAV_PATH = "sample2_vits2.wav"
 
 hps = utils.get_hparams_from_file(CONFIG_PATH)
 

@@ -4,7 +4,7 @@ from text.vietnamese import g2p
 from viphoneme import vi2IPA_split
 from text.cleaners import clean_text
 # print(vi2IPA_split("Sáng hôm sau, thi thể Sherri được tìm thấy trong chiếc minivan của gia đình ở một bãi đậu xe bên ngoài thành phố Pensacola, Florida", delimit="/"))
-p, t = clean_text("Đại diện Quỹ đầu tư Unified")
+p, t = clean_text("Mimi Meacham Marian Louise Designs")
 print(p)
 print(t)
 # print(len(p), len(t))

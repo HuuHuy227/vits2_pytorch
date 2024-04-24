@@ -1,35 +1,50 @@
+import os
+import json
 import argparse
 import itertools
-import json
 import math
-import os
-
 import torch
-import torch.distributed as dist
-# from tensorboardX import SummaryWriter
-import torch.multiprocessing as mp
-import tqdm
 from torch import nn, optim
-from torch.cuda.amp import GradScaler, autocast
 from torch.nn import functional as F
-from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+import logging
+
+logging.getLogger("numba").setLevel(logging.WARNING)
+# from tensorboardX import SummaryWriter
+import torch.multiprocessing as mp
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.cuda.amp import autocast, GradScaler
+import tqdm
 
 import commons
-import models
 import utils
-from data_utils import (DistributedBucketSampler, TextAudioSpeakerCollate,
-                        TextAudioSpeakerLoader)
-from losses import discriminator_loss, feature_loss, generator_loss, kl_loss
+from data_utils import TextAudioLoader, TextAudioCollate, DistributedBucketSampler
+from models import (
+    SynthesizerTrn,
+    MultiPeriodDiscriminator,
+    DurationDiscriminatorV1,
+    DurationDiscriminatorV2,
+    AVAILABLE_FLOW_TYPES,
+    AVAILABLE_DURATION_DISCRIMINATOR_TYPES
+)
+from losses import generator_loss, discriminator_loss, feature_loss, kl_loss
 from mel_processing import mel_spectrogram_torch, spec_to_mel_torch
-from models import (AVAILABLE_DURATION_DISCRIMINATOR_TYPES,
-                    AVAILABLE_FLOW_TYPES, 
-                    DurationDiscriminatorV1, DurationDiscriminatorV2,
-                    MultiPeriodDiscriminator, SynthesizerTrn)
 from text.symbols import symbols
 
-torch.backends.cudnn.benchmark = True
+
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = (
+    True  # If encountered training problem,please try to disable TF32.
+)
+torch.set_float32_matmul_precision("medium")
+torch.backends.cuda.sdp_kernel("flash")
+torch.backends.cuda.enable_flash_sdp(True)
+torch.backends.cuda.enable_mem_efficient_sdp(
+    True
+)
+# torch.backends.cudnn.benchmark = True
 global_step = 0
 
 
@@ -53,7 +68,6 @@ def main():
 
 
 def run(rank, n_gpus, hps):
-    net_dur_disc = None
     global global_step
     if rank == 0:
         logger = utils.get_logger(hps.model_dir)
@@ -80,7 +94,7 @@ def run(rank, n_gpus, hps):
         posterior_channels = hps.data.filter_length // 2 + 1
         hps.data.use_mel_posterior_encoder = False
 
-    train_dataset = TextAudioSpeakerLoader(hps.data.training_files, hps.data)
+    train_dataset = TextAudioLoader(hps.data.training_files, hps.data)
     train_sampler = DistributedBucketSampler(
         train_dataset,
         hps.train.batch_size,
@@ -89,7 +103,8 @@ def run(rank, n_gpus, hps):
         rank=rank,
         shuffle=True,
     )
-    collate_fn = TextAudioSpeakerCollate()
+
+    collate_fn = TextAudioCollate()
     train_loader = DataLoader(
         train_dataset,
         num_workers=8,
@@ -99,7 +114,7 @@ def run(rank, n_gpus, hps):
         batch_sampler=train_sampler,
     )
     if rank == 0:
-        eval_dataset = TextAudioSpeakerLoader(hps.data.validation_files, hps.data)
+        eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
         eval_loader = DataLoader(
             eval_dataset,
             num_workers=8,
@@ -111,6 +126,7 @@ def run(rank, n_gpus, hps):
         )
     # some of these flags are not being used in the code and directly set in hps json file.
     # they are kept here for reference and prototyping.
+
     if (
         "use_transformer_flows" in hps.model.keys()
         and hps.model.use_transformer_flows == True
@@ -130,10 +146,11 @@ def run(rank, n_gpus, hps):
         and hps.model.use_spk_conditioned_encoder == True
     ):
         if hps.data.n_speakers == 0:
-            raise ValueError(
-                "n_speakers must be > 0 when using spk conditioned encoder to train multi-speaker model"
-            )
-        use_spk_conditioned_encoder = True
+            print("Warning: use_spk_conditioned_encoder is True but n_speakers is 0")
+        print(
+            "Setting use_spk_conditioned_encoder to False as model is a single speaker model"
+        )
+        use_spk_conditioned_encoder = False
     else:
         print("Using normal encoder for VITS1")
         use_spk_conditioned_encoder = False
@@ -158,18 +175,9 @@ def run(rank, n_gpus, hps):
     ):
         # print("Using duration discriminator for VITS2")
         use_duration_discriminator = True
-
-        # comment - choihkk
-        # add duration discriminator type here
-        # I think it would be a good idea to come up with a method to input this part accurately, like a hydra
-        duration_discriminator_type = getattr(
-            hps.model, "duration_discriminator_type", "dur_disc_1"
-        )
+        duration_discriminator_type = hps.model.duration_discriminator_type
         print(f"Using duration_discriminator {duration_discriminator_type} for VITS2")
-        assert (
-            duration_discriminator_type in AVAILABLE_DURATION_DISCRIMINATOR_TYPES
-        ), f"duration_discriminator_type must be one of {AVAILABLE_DURATION_DISCRIMINATOR_TYPES}"
-        duration_discriminator_type = AVAILABLE_DURATION_DISCRIMINATOR_TYPES
+        assert duration_discriminator_type in AVAILABLE_DURATION_DISCRIMINATOR_TYPES, f"duration_discriminator_type must be one of {AVAILABLE_DURATION_DISCRIMINATOR_TYPES}"
         if duration_discriminator_type == "dur_disc_1":
             net_dur_disc = DurationDiscriminatorV1(
                 hps.model.hidden_channels,
@@ -195,12 +203,13 @@ def run(rank, n_gpus, hps):
         len(symbols),
         posterior_channels,
         hps.train.segment_size // hps.data.hop_length,
-        n_speakers=hps.data.n_speakers,
         mas_noise_scale_initial=mas_noise_scale_initial,
         noise_scale_delta=noise_scale_delta,
         **hps.model,
     ).cuda(rank)
+
     net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm).cuda(rank)
+
     optim_g = torch.optim.AdamW(
         net_g.parameters(),
         hps.train.learning_rate,
@@ -223,34 +232,112 @@ def run(rank, n_gpus, hps):
     else:
         optim_dur_disc = None
 
-    # comment - choihkk
-    # if we comment out unused parameter like DurationDiscriminator's self.pre_out_norm1,2 self.norm_1,2
-    # and ResidualCouplingTransformersLayer's self.post_transformer
-    # we don't have to set find_unused_parameters=True
-    # but I will not proceed with commenting out for compatibility with the latest work for others
     net_g = DDP(net_g, device_ids=[rank], find_unused_parameters=True)
     net_d = DDP(net_d, device_ids=[rank], find_unused_parameters=True)
     if net_dur_disc is not None:
-        net_dur_disc = DDP(
-            net_dur_disc, device_ids=[rank], find_unused_parameters=True)
+        net_dur_disc = DDP(net_dur_disc, device_ids=[rank], find_unused_parameters=True)
 
     try:
-        _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g
+        # load VITS2 model
+        # _, _, _, _ = utils.load_checkpoint(utils.latest_checkpoint_path(hps.train.pretrained_path, "G_*.pth"), net_g)
+
+        _, optim_g, g_resume_lr, epoch_str = utils.load_checkpoint(
+            utils.latest_checkpoint_path(hps.train.pretrained_path, "G_*.pth"), net_g, optim_g, 
+            skip_optimizer=(
+                hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
+            ),
         )
-        _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d
+
+        _, optim_d, d_resume_lr, epoch_str = utils.load_checkpoint(
+            utils.latest_checkpoint_path(hps.train.pretrained_path, "D_*.pth"), net_d, optim_d,
+            skip_optimizer=(
+                hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
+            ),
         )
+
+        if not optim_g.param_groups[0].get("initial_lr"):
+            optim_g.param_groups[0]["initial_lr"] = g_resume_lr
+        if not optim_d.param_groups[0].get("initial_lr"):
+            optim_d.param_groups[0]["initial_lr"] = d_resume_lr
+
+        # Freeze all parameters by default        
+        for param in net_g.parameters():
+            param.requires_grad = False  
+                
+        # Unfreeze parameters in the Duration Predictor module
+        for param in net_g.dp.parameters():
+            param.requires_grad = True
+        print("******************Found exists checkpoints and only training DP module******************")
+    except:
+        print("******************Can't found exist Vits2 path. Training Vits2 from scratch******************")
+
+
+    try:
         if net_dur_disc is not None:
-            _, _, _, epoch_str = utils.load_checkpoint(
-                utils.latest_checkpoint_path(hps.model_dir, "DUR_*.pth"),
+            _, _, dur_resume_lr, epoch_str = utils.load_checkpoint(
+                utils.latest_checkpoint_path(hps.train.pretrained_path, "DUR_*.pth"),
                 net_dur_disc,
                 optim_dur_disc,
+                skip_optimizer=(
+                    hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
+                )
             )
-        global_step = (epoch_str - 1) * len(train_loader)
+            if not optim_dur_disc.param_groups[0].get("initial_lr"):
+                optim_dur_disc.param_groups[0]["initial_lr"] = dur_resume_lr
+        global_step = int(
+            utils.get_steps(utils.latest_checkpoint_path(hps.train.pretrained_path, "DUR_*.pth"))
+        )
+        print(
+            f"******************Found exists DP checkpoint，at epoch {epoch_str}，global step {global_step}*********************"
+        )
     except:
+        print("******************Training DP from scratch*********************")
         epoch_str = 1
         global_step = 0
+
+    # try:
+    #     _, optim_g, g_resume_lr, epoch_str = utils.load_checkpoint(
+    #         utils.latest_checkpoint_path(hps.train.pretrained_path, "G_*.pth"), net_g, optim_g, 
+    #         skip_optimizer=(
+    #             hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
+    #         ),
+    #     )
+    #     _, optim_d, d_resume_lr, epoch_str = utils.load_checkpoint(
+    #         utils.latest_checkpoint_path(hps.train.pretrained_path, "D_*.pth"), net_d, optim_d,
+    #         skip_optimizer=(
+    #             hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
+    #         ),
+    #     )
+
+    #     if not optim_g.param_groups[0].get("initial_lr"):
+    #         optim_g.param_groups[0]["initial_lr"] = g_resume_lr
+    #     if not optim_d.param_groups[0].get("initial_lr"):
+    #         optim_d.param_groups[0]["initial_lr"] = d_resume_lr
+
+    #     if net_dur_disc is not None:
+    #         _, _, dur_resume_lr, epoch_str = utils.load_checkpoint(
+    #             utils.latest_checkpoint_path(hps.train.pretrained_path, "DUR_*.pth"),
+    #             net_dur_disc,
+    #             optim_dur_disc,
+    #             skip_optimizer=(
+    #                 hps.train.skip_optimizer if "skip_optimizer" in hps.train else True
+    #             )
+    #         )
+    #         if not optim_dur_disc.param_groups[0].get("initial_lr"):
+    #             optim_dur_disc.param_groups[0]["initial_lr"] = dur_resume_lr
+
+    #     epoch_str = max(epoch_str, 1)
+    #     # global_step = (epoch_str - 1) * len(train_loader)
+    #     global_step = int(
+    #         utils.get_steps(utils.latest_checkpoint_path(hps.train.pretrained_path, "G_*.pth"))
+    #     )
+    #     print(
+    #         f"******************Found exists checkpoint，at epoch {epoch_str}，global step {global_step}*********************"
+    #     )
+    # except:
+    #     print("******************Training from scratch*********************")
+    #     epoch_str = 1
+    #     global_step = 0
 
     scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
         optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
@@ -322,15 +409,9 @@ def train_and_evaluate(
         loader = tqdm.tqdm(train_loader, desc="Loading train data")
     else:
         loader = train_loader
-    for batch_idx, (
-        x,
-        x_lengths,
-        spec,
-        spec_lengths,
-        y,
-        y_lengths,
-        speakers,
-    ) in enumerate(loader):
+    for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths, tone) in enumerate(
+        loader
+    ):
         if net_g.module.use_noise_scaled_mas:
             current_mas_noise_scale = (
                 net_g.module.mas_noise_scale_initial
@@ -346,7 +427,8 @@ def train_and_evaluate(
         y, y_lengths = y.cuda(rank, non_blocking=True), y_lengths.cuda(
             rank, non_blocking=True
         )
-        speakers = speakers.cuda(rank, non_blocking=True)
+
+        tone = tone.cuda(rank, non_blocking=True)
 
         with autocast(enabled=hps.train.fp16_run):
             (
@@ -358,7 +440,7 @@ def train_and_evaluate(
                 z_mask,
                 (z, z_p, m_p, logs_p, m_q, logs_q),
                 (hidden_x, logw, logw_),
-            ) = net_g(x, x_lengths, spec, spec_lengths, speakers)
+            ) = net_g(x, x_lengths, spec, spec_lengths, tone)
 
             if (
                 hps.model.use_mel_posterior_encoder
@@ -366,10 +448,6 @@ def train_and_evaluate(
             ):
                 mel = spec
             else:
-                # comment - choihkk
-                # for numerical stable when using fp16 and torch>=2.0.0,
-                # spec.float() could be help in the training stage
-                # https://github.com/jaywalnut310/vits/issues/15
                 mel = spec_to_mel_torch(
                     spec.float(),
                     hps.data.filter_length,
@@ -559,20 +637,13 @@ def train_and_evaluate(
 def evaluate(hps, generator, eval_loader, writer_eval):
     generator.eval()
     with torch.no_grad():
-        for batch_idx, (
-            x,
-            x_lengths,
-            spec,
-            spec_lengths,
-            y,
-            y_lengths,
-            speakers,
-        ) in enumerate(eval_loader):
+        for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths, tone) in enumerate(
+            eval_loader
+        ):
             x, x_lengths = x.cuda(0), x_lengths.cuda(0)
             spec, spec_lengths = spec.cuda(0), spec_lengths.cuda(0)
             y, y_lengths = y.cuda(0), y_lengths.cuda(0)
-            speakers = speakers.cuda(0)
-
+            tone = tone.cuda(0)
             # remove else
             x = x[:1]
             x_lengths = x_lengths[:1]
@@ -580,11 +651,9 @@ def evaluate(hps, generator, eval_loader, writer_eval):
             spec_lengths = spec_lengths[:1]
             y = y[:1]
             y_lengths = y_lengths[:1]
-            speakers = speakers[:1]
+            tone = tone[:1]
             break
-        y_hat, attn, mask, *_ = generator.module.infer(
-            x, x_lengths, speakers, max_len=1000
-        )
+        y_hat, attn, mask, *_ = generator.module.infer(x, x_lengths, tone, max_len=1000)
         y_hat_lengths = mask.sum([1, 2]).long() * hps.data.hop_length
 
         if hps.model.use_mel_posterior_encoder or hps.data.use_mel_posterior_encoder:
