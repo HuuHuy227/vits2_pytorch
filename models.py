@@ -1228,10 +1228,12 @@ class SynthesizerTrn(nn.Module):
         )
 
         if use_sdp:
+            print("******************Using SDP*********************")
             self.dp = StochasticDurationPredictor(
                 hidden_channels, 192, 3, 0.5, 4, gin_channels=gin_channels
             )
         else:
+            print("******************Using DP*********************")
             self.dp = DurationPredictor(
                 hidden_channels, 256, 3, 0.5, gin_channels=gin_channels
             )
