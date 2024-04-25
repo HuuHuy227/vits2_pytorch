@@ -19,18 +19,9 @@ def get_text(text):
     return phone,  tone
 
 CONFIG_PATH = "./configs/config_test.json"
-MODEL_PATH = "D:\demo\checkpoints\G_70000.pth"
+MODEL_PATH = "D:/demo\checkpoints spd/G_10000.pth"   #"D:\demo\checkpoints\G_70000.pth"
 TEXT = """
-Nửa đời binh biến không màng
-Đến khi trở lại thì nàng có con
-Lúc đi má đỏ môi son
-Khi về nàng đã có con có chồng
-Vì giang sơn mất bóng hồng
-Dẹp xong chiến loạn thì không còn gì
-Cuộc đời thật lắm thị phi
-Lập được công lớn xong thì chết oan
-Thương cho Hàn Tín mà than
-Bao nhiêu công sức thân tàn bụi tro
+anh nhớ em nhớ nụ cười nhớ ánh mắt nhớ cả bờ môi
 """
 
 OUTPUT_WAV_PATH = "sample2_vits2.wav"
