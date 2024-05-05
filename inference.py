@@ -19,12 +19,18 @@ def get_text(text):
     return phone,  tone
 
 CONFIG_PATH = "./configs/config_test.json"
-MODEL_PATH = "D:/demo\checkpoints spd/G_10000.pth"   #"D:\demo\checkpoints\G_70000.pth"
+MODEL_PATH = "D:/demo\checkpoints spd/G_71000.pth"   
+OUTPUT_WAV_PATH = "sample2.wav"
+
+# CONFIG_PATH = "./configs/config_nosdp.json"
+# MODEL_PATH = "D:\demo\checkpoints\G_70000.pth"
+# OUTPUT_WAV_PATH = "sample1.wav"
+
 TEXT = """
-anh nhớ em nhớ nụ cười nhớ ánh mắt nhớ cả bờ môi
+Theo Công an tỉnh Hải Dương, cùng với việc bắt giữ được Vũ Thị Tuyết, phòng Cảnh sát hình sự Công an tỉnh đã kịp thời ngăn chặn hành vi câu kết với các đối tượng khác của Tuyết để xuất cảnh sang thành phố Bamako, nước Cộng hòa Mali Châu Phi vào ngày ba để hành nghề mại dâm nhằm trốn tránh sự phát hiện của cơ quan chức năng, điều hành nhóm Phố đèn đỏ Hải Dương
 """
 
-OUTPUT_WAV_PATH = "sample2_vits2.wav"
+
 
 hps = utils.get_hparams_from_file(CONFIG_PATH)
 
